@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width,user-scalable=no" />
+<meta charset="UTF-8">
+<title>Document</title>
+<style type="text/css">
+body,
+html {
+	margin: 0;
+	height: 100%;
+	position: relative;
+	overflow: hidden;
+	/* 养成习惯页面只有一屏，给body overflow 和 相对定位 */
+}	
+.wrap {
+	position: relative;
+	height: 100%;
+}
+.view,
+.boxZ,
+.bg {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	-webkit-transform-style: preserve-3d;
+	transform-style: preserve-3d;
+}
+.bg span {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	margin: -585px 0 0 -64.5px;
+	width: 129px;
+	height: 1170px;
+	-webkit-backface-visibility: hidden;
+	backface-visibility: hidden;
+}
+#bg {
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background: url(bg/bg.jpg) no-repeat;
+	background-size: cover;
+	opacity: 0;
+}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div class="wrap"><!-- 景深 -->
+	<div class="view"> <!-- 把元素和景深贴在一起 -->
+		<div class="boxZ"> <!-- 固定一个观看距离 -->
+			<div class="bg"></div>
+		</div>
+	</div>
+</div>	
+<script type="text/javascript" src="js/m.touch.js"></script>
+<script type="text/javascript">
+/* 3d适配 */
+(function(){
+	var wrap = document.querySelector('.wrap');
+	var view = document.querySelector('.view');
+	var boxZ = document.querySelector('.boxZ');
+	var deg = 52.5;
+	var R =  Math.round(Math.tan(deg*Math.PI/180)*(wrap.clientHeight/2));
+	wrap.style.perspective = wrap.style.WebkitPerspective = R + "px";
+	css(view,"translateZ",R);
+	css(boxZ,"translateZ",-150);
+})();
+/* 生成布局 */
+(function(){
+	var bg = document.querySelector('.bg');
+	var liW = 129;
+	var inner = "";
+	var length = 20;
+	var deg = 360/length;//外角
+	var innerDeg = (180-deg)/2; //夹角
+	//正切：直角三角形中对边和临边的比值
+	var R = Math.tan(innerDeg*Math.PI/180)*liW/2;
+//	console.log(R); 
+	for(var i = 0; i < length; i++){
+		inner += '<span style="opacity:0;background:url(bg/'+(i+1)+'.png);-webkit-transform:rotateY('+(-i*deg)+'deg) translateZ('+(-R)+'px)"></span>';
+	}
+	bg.innerHTML  =  inner;
+})();
+document.addEventListener('touchstart', function(e) {
+	e.preventDefault();
+});
+//入场动画
+(function(){
+	var bg = document.querySelector('.bg');
+	var pageBg = document.querySelector('#bg');
+	var boxZ = document.querySelector('.boxZ');
+	var span = bg.querySelectorAll('span');
+	var timer = 0; 
+	var now = 0;
+	css(bg,"rotateX",0);
+	css(bg,"rotateY",-792);
+	css(boxZ,"translateZ",-3000);
+	startMove({
+		el: boxZ,
+		target: {
+			translateZ: -150
+		},
+		type: "easeOut",
+		time: 5000
+	});
+	startMove({
+		el: bg,
+		target: {
+			rotateY: 25
+		},
+		type: "easeOut",
+		time: 5000,
+		callBack: function(){
+			startMove({
+				el:pageBg,
+				target: {
+					opacity:100
+				},
+				type: 'easeOutStrong',
+				time: 1000
+			});
+			setRotate();
+		}
+	});
+	timer = setInterval(function(){
+		css(span[now],"opacity",100);
+		now++;
+		if(now >= span.length){
+			clearInterval(timer);
+		}
+	},30);
+})();
+/*
+	添加旋转
+*/	
+function setRotate(){
+	/* 拖拽旋转 */
+	var wrap = document.querySelector('.wrap');
+	var boxZ = document.querySelector('.boxZ');
+	var bg = document.querySelector('.bg');
+	var startPiont = {};
+	var startDeg = {};
+	var scale = {x:90/wrap.clientWidth,y:30/wrap.clientHeight};//每移动1px旋转多少度
+	var lastTime = 0;
+	var lastSpeed = {};
+	var lastDis = {};
+	var isTouch = false;
+	var startBoxZ = css(boxZ,"translateZ");
+	//console.log(scale);
+	// css(bg,"rotateX",0);
+	// css(bg,"rotateY",0);
+	bg.addEventListener('touchstart', function(e) {
+		isTouch = true;
+		var touch = e.changedTouches[0];
+		startPiont = {x:touch.pageX,y:touch.pageY};
+		startDeg = {x:css(bg,"rotateY"),y:css(bg,"rotateX")};
+		lastSpeed = {x:0,y:0};
+		lastDis = {x:touch.pageX,y:touch.pageY};
+		lastTime = Date.now();
+
+	});
+	bg.addEventListener('touchmove', function(e) {
+		var touch = e.changedTouches[0];
+		var now = {x:touch.pageX,y:touch.pageY};
+		var dis = {x:now.x - startPiont.x,y:now.y - startPiont.y};
+		var disDeg = {x:dis.x*scale.x,y:dis.y*scale.y};
+		var nowDeg = {x:startDeg.x - disDeg.x,y:startDeg.y + disDeg.y };
+		css(boxZ,"translateZ",startBoxZ - Math.abs(dis.x));
+		if(nowDeg.y > 40){
+			nowDeg.y = 40
+		} else if(nowDeg.y < -40){
+			nowDeg.y = -40;
+		}
+		css(bg,"rotateY",nowDeg.x);
+		css(bg,"rotateX",nowDeg.y);
+		var nowTime = Date.now();
+		var timeDis = nowTime - lastTime;
+		lastSpeed = {x:(now.x - lastDis.x)/timeDis,y:(now.y - lastDis.y)/timeDis};
+		lastDis = {x:now.x,y:now.y};
+		lastTime = nowTime;
+	});
+	bg.addEventListener('touchend', function(e) {
+		var nowTime = Date.now();
+		if(nowTime - lastTime > 100){
+			return;
+		}
+		var target = {
+			rotateX: css(bg,"rotateX") + lastSpeed.y*15,
+			rotateY: css(bg,"rotateY") - lastSpeed.x*15 
+		};
+		if(target.rotateX > 40){
+			target.rotateX = 40
+		} else if(target.rotateX < -40){
+			target.rotateX = -40;
+		}
+		console.log();
+		console.log(target);
+		startMove({
+			el:boxZ,
+			target: {
+				translateZ: startBoxZ
+			},
+			type: "easeOutStrong",
+			time: 1000
+		});
+		startMove({
+			el: bg,
+			target: target,
+			time: 1000,
+			type: "easeOutStrong",
+			callBack: function(){
+				var degY = css(bg,'rotateY')%360;
+				css(bg,'rotateY',degY);
+				isTouch = false;
+				console.log(isTouch);
+			}
+		});
+	});
+
+	var lastDeviceTime = 0;
+	var startDeviceDeg = {};
+	var startBgDeg = {};
+	window.addEventListener('deviceorientation', function(e) {
+		if(isTouch){
+			return;
+		}
+		var nowTime = Date.now();
+		var x = e.beta;
+		var y = e.gamma;
+		var z = e.alpha;
+		var degX = x;
+		var degY = (y + z)%360;
+		if(nowTime - lastDeviceTime > 100){
+			//第一次进入
+			startDeviceDeg = {x:degX,y:degY};
+			startBgDeg = {x:css(bg,"rotateX"),y:css(bg,"rotateY")};
+		} else {
+			//后续的连续触发
+			var dis = {x:startDeviceDeg.x - degX,y:startDeviceDeg.y - degY};
+			var nowDeg = {x:startBgDeg.x + dis.x,y: startBgDeg.y + dis.y};
+			if(nowDeg.x > 40){
+				nowDeg.x = 40;
+			} else if(nowDeg.x < -40){
+				nowDeg.x = -40;
+			}
+			css(bg,"rotateX",nowDeg.x);
+			css(bg,"rotateY",nowDeg.y);
+			//后续的连续触发
+		}	
+		lastDeviceTime = nowTime;	
+	});
+}
+</script>
+</body>
+</html>
